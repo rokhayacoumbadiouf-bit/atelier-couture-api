@@ -7,7 +7,7 @@ from app.config import settings
 from app.database import Base
 
 # Importer les modèles ici au fur et à mesure qu'ils seront créés
-# from app.models import ...
+import app.models  # noqa: F401  (enregistre les modèles pour Alembic)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
