@@ -7,7 +7,8 @@ from app.routers.auth import router as auth_router
 from app.routers.utilisateurs import router as utilisateurs_router
 from app.routers.clients import router as clients_router
 from app.routers.catalogue import router as catalogue_router
-
+from app.routers.mesures import router_clients as mesures_clients_router
+from app.routers.mesures import router_mesures as mesures_router
 
 app = FastAPI(
     title="API atelier de couture",
@@ -19,7 +20,8 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(utilisateurs_router, prefix="/api/v1")
 app.include_router(clients_router, prefix="/api/v1")
 app.include_router(catalogue_router, prefix="/api/v1")
-
+app.include_router(mesures_clients_router, prefix="/api/v1")
+app.include_router(mesures_router, prefix="/api/v1")
 
 @app.get("/health", tags=["Santé"])
 def health(db: Session = Depends(get_db)) -> dict[str, str]:
