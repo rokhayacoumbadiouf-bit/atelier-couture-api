@@ -6,6 +6,8 @@ from app.database import get_db
 from app.routers.auth import router as auth_router
 from app.routers.utilisateurs import router as utilisateurs_router
 from app.routers.clients import router as clients_router
+from app.routers.catalogue import router as catalogue_router
+
 
 app = FastAPI(
     title="API atelier de couture",
@@ -16,6 +18,7 @@ app = FastAPI(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(utilisateurs_router, prefix="/api/v1")
 app.include_router(clients_router, prefix="/api/v1")
+app.include_router(catalogue_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Santé"])
