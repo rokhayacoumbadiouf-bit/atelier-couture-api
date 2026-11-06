@@ -10,6 +10,8 @@ from app.routers.catalogue import router as catalogue_router
 from app.routers.mesures import router_clients as mesures_clients_router
 from app.routers.mesures import router_mesures as mesures_router
 from app.routers.commandes import router as commandes_router
+from app.routers.paiements import router_commandes as paiements_commandes_router
+from app.routers.paiements import router_paiements as paiements_router
 
 app = FastAPI(
     title="API atelier de couture",
@@ -24,6 +26,9 @@ app.include_router(catalogue_router, prefix="/api/v1")
 app.include_router(mesures_clients_router, prefix="/api/v1")
 app.include_router(mesures_router, prefix="/api/v1")
 app.include_router(commandes_router, prefix="/api/v1")
+app.include_router(paiements_commandes_router, prefix="/api/v1")
+app.include_router(paiements_router, prefix="/api/v1")
+
 
 @app.get("/health", tags=["Santé"])
 def health(db: Session = Depends(get_db)) -> dict[str, str]:
