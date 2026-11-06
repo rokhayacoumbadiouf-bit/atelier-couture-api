@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, require_roles
 from app.database import get_db
 from app.models import Utilisateur
-from app.schemas.livraison import LivraisonConfirmer, LivraisonPlanifier, LivraisonRead
+from app.schemas.livraison import LivraisonConfirmer, LivraisonPlanifier, LivraisonRead, LivraisonTournee
 from app.services import livraisons as service
 
 
@@ -47,7 +47,7 @@ def confirmer(
     return livraison
 
 
-@router_livraisons.get("", response_model=list[LivraisonRead])
+@router_livraisons.get("", response_model=list[LivraisonTournee])
 def tournee(
     statut: str | None = None,
     date_min: date | None = None,
@@ -55,4 +55,22 @@ def tournee(
     db: Session = Depends(get_db),
     _: Utilisateur = Depends(get_current_user),
 ):
-    return service.lister_livraisons(db, statut, date_min, date_max)
+    lignes = service.lister_livraisons(db, statut, date_min, date_max)
+    return [
+        LivraisonTournee(
+            id=livraison.id,
+            commande_id=livraison.commande_id,
+            mode=livraison.mode,
+            adresse=livraison.adresse,
+            livreur=livraison.livreur,
+            date_prevue=livraison.date_prevue,
+            date_effective=livraison.date_effective,
+            statut=livraison.statut,
+            notes=livraison.notes,
+            numero_commande=commande.numero,
+            client_nom=f"{client.prenom} {client.nom}",
+            client_telephone=client.telephone,
+            solde_commande=commande.solde,
+        )
+        for livraison, commande, client in lignes
+    ]

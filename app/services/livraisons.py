@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Commande, HistoriqueStatut, Livraison, Utilisateur
+from app.models import Client, Commande, HistoriqueStatut, Livraison, Utilisateur
 from app.schemas.livraison import LivraisonConfirmer, LivraisonPlanifier
 from app.services.commandes import get_commande
 
@@ -121,12 +121,16 @@ def lister_livraisons(
     statut: str | None,
     date_min: date | None,
     date_max: date | None,
-) -> list[Livraison]:
-    requete = select(Livraison).join(Commande, Livraison.commande_id == Commande.id)
+):
+    requete = (
+        select(Livraison, Commande, Client)
+        .join(Commande, Livraison.commande_id == Commande.id)
+        .join(Client, Commande.client_id == Client.id)
+    )
     if statut is not None:
         requete = requete.where(Livraison.statut == statut)
     if date_min is not None:
         requete = requete.where(Livraison.date_prevue >= date_min)
     if date_max is not None:
         requete = requete.where(Livraison.date_prevue <= date_max)
-    return list(db.scalars(requete.order_by(Livraison.date_prevue, Livraison.id)).all())
+    return list(db.execute(requete.order_by(Livraison.date_prevue, Livraison.id)).all())

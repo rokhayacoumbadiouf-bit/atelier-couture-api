@@ -29,3 +29,10 @@ class LivraisonRead(BaseModel):
     date_effective: date | None
     statut: str
     notes: str | None
+
+
+class LivraisonTournee(LivraisonRead):
+    numero_commande: str
+    client_nom: str
+    client_telephone: str
+    solde_commande: int
