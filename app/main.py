@@ -14,6 +14,8 @@ from app.routers.paiements import router_commandes as paiements_commandes_router
 from app.routers.paiements import router_paiements as paiements_router
 from app.routers.livraisons import router_commandes as livraisons_commandes_router
 from app.routers.livraisons import router_livraisons as livraisons_router
+from app.routers.statistiques import router as statistiques_router
+
 
 app = FastAPI(
     title="API atelier de couture",
@@ -32,6 +34,8 @@ app.include_router(paiements_commandes_router, prefix="/api/v1")
 app.include_router(paiements_router, prefix="/api/v1")
 app.include_router(livraisons_commandes_router, prefix="/api/v1")
 app.include_router(livraisons_router, prefix="/api/v1")
+app.include_router(statistiques_router, prefix="/api/v1")
+
 
 @app.get("/health", tags=["Santé"])
 def health(db: Session = Depends(get_db)) -> dict[str, str]:
