@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Mesure, Utilisateur
+from app.models import Commande, Mesure, Utilisateur
 from app.schemas.mesure import CHAMPS_MESURES, MesureCreate, MesureUpdate
 from app.services.clients import get_client
 
@@ -19,9 +19,8 @@ def _verifier_au_moins_une_mesure(mesure: Mesure) -> None:
 
 
 def mesure_utilisee(db: Session, mesure_id: int) -> bool:
-    """RG4 : sera complété en T3.2, quand le modèle Commande existera."""
-    return False
-
+    """RG4 : une mesure utilisée par une commande ne peut pas être supprimée."""
+    return db.scalar(select(Commande.id).where(Commande.mesure_id == mesure_id).limit(1)) is not None
 
 def get_mesure(db: Session, mesure_id: int) -> Mesure:
     mesure = db.get(Mesure, mesure_id)

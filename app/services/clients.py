@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Client
+from app.models import Client, Commande
 from app.schemas.client import ClientCreate, ClientUpdate
 
 
@@ -76,7 +76,12 @@ def modifier_client(db: Session, client_id: int, data: ClientUpdate) -> Client:
 
 def supprimer_client(db: Session, client_id: int) -> None:
     client = get_client(db, client_id)
-    # RG4 : le refus si le client a des commandes sera ajouté avec le modèle Commande (palier 2)
+    # RG4 : un client qui a des commandes ne peut pas être supprimé
+    if db.scalar(select(Commande.id).where(Commande.client_id == client.id).limit(1)) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ce client a des commandes et ne peut pas être supprimé",
+        )
     db.delete(client)
     db.flush()
 
