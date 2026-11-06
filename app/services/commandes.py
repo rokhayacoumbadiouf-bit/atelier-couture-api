@@ -4,7 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Commande, LigneCommande, Mesure, TypeVetement, Utilisateur
+from app.models import Commande, LigneCommande, Mesure, TypeVetement, HistoriqueStatut, Utilisateur
+from app.models.utilisateur import Utilisateur
 from app.schemas.commande import CommandeCreate
 from app.services.clients import get_client
 
@@ -119,6 +120,15 @@ def creer_commande(db: Session, data: CommandeCreate, acteur: Utilisateur) -> Co
     recalculer_montants(commande)
 
     db.add(commande)
+    db.flush()
+    db.add(
+        HistoriqueStatut(
+            commande_id=commande.id,
+            ancien_statut=None,
+            nouveau_statut="en_attente",
+            utilisateur_id=acteur.id,
+        )
+    )
     db.flush()
     return commande
 

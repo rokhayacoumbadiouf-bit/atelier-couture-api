@@ -5,10 +5,11 @@ from datetime import date
 from app.core.dependencies import get_current_user, require_roles
 from app.database import get_db
 from app.models import Utilisateur
-from app.schemas.commande import CommandeCreate, CommandeRead,CommandeUpdate, LigneAjout
+from app.schemas.commande import CommandeCreate, CommandeRead,CommandeUpdate, LigneAjout, StatutChange, HistoriqueRead
 from app.schemas.pagination import Page
 
 from app.services import commandes as service
+from app.services import statuts as statuts_service
 
 
 router = APIRouter(prefix="/commandes", tags=["Commandes"])
@@ -77,6 +78,30 @@ def ajouter_ligne(
     commande = service.ajouter_ligne(db, commande_id, data)
     db.commit()
     return commande
+
+from app.schemas.commande import StatutChange, HistoriqueRead
+from app.services import statuts as statuts_service
+
+
+@router.post("/{commande_id}/statut", response_model=CommandeRead)
+def changer_statut(
+    commande_id: int,
+    data: StatutChange,
+    db: Session = Depends(get_db),
+    acteur: Utilisateur = Depends(get_current_user),
+):
+    commande = statuts_service.changer_statut(db, commande_id, data.statut, data.commentaire, acteur)
+    db.commit()
+    return commande
+
+
+@router.get("/{commande_id}/historique", response_model=list[HistoriqueRead])
+def historique(
+    commande_id: int,
+    db: Session = Depends(get_db),
+    _: Utilisateur = Depends(get_current_user),
+):
+    return statuts_service.historique_commande(db, commande_id)
 
 
 @router.delete("/{commande_id}/lignes/{ligne_id}", response_model=CommandeRead)
