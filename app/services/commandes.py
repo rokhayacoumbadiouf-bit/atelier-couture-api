@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Commande, LigneCommande, Mesure, TypeVetement, Utilisateur
@@ -121,3 +121,127 @@ def creer_commande(db: Session, data: CommandeCreate, acteur: Utilisateur) -> Co
     db.add(commande)
     db.flush()
     return commande
+
+def _verifier_modifiable(commande: Commande) -> None:
+    """RG12 : une commande livrée ou annulée n'est plus modifiable."""
+    if commande.statut in ("livree", "annulee"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Une commande « {commande.statut} » ne peut plus être modifiée",
+        )
+
+
+def _verifier_lignes_modifiables(commande: Commande) -> None:
+    """RG10 : les lignes ne sont modifiables que tant que la commande est en attente."""
+    if commande.statut != "en_attente":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Les prestations ne peuvent être modifiées que tant que la commande est en attente",
+        )
+
+
+def modifier_commande(db: Session, commande_id: int, data) -> Commande:
+    """PATCH : mesure_id, date_livraison_prevue, remise, notes. Recalcule les montants."""
+    commande = get_commande(db, commande_id)
+    _verifier_modifiable(commande)
+    modifications = data.model_dump(exclude_unset=True)
+
+    if "mesure_id" in modifications:
+        commande.mesure_id = _mesure_pour_commande(db, commande.client_id, modifications["mesure_id"])
+
+    if "date_livraison_prevue" in modifications:
+        if modifications["date_livraison_prevue"] is not None and modifications["date_livraison_prevue"] < commande.date_commande:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="La date de livraison prévue ne peut pas précéder la date de commande",
+            )
+        commande.date_livraison_prevue = modifications["date_livraison_prevue"]
+
+    if "remise" in modifications:
+        commande.remise = modifications["remise"]
+
+    if "notes" in modifications:
+        commande.notes = modifications["notes"]
+
+    recalculer_montants(commande)
+    db.flush()
+    return commande
+
+
+def ajouter_ligne(db: Session, commande_id: int, data) -> Commande:
+    """RG6, RG10 : ajoute une prestation et recalcule les montants."""
+    commande = get_commande(db, commande_id)
+    _verifier_lignes_modifiables(commande)
+
+    prestation = db.get(TypeVetement, data.type_vetement_id)
+    if prestation is None or not prestation.actif:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Prestation introuvable ou plus disponible",
+        )
+
+    prix = data.prix_unitaire if data.prix_unitaire is not None else prestation.prix_base
+    commande.lignes.append(
+        LigneCommande(
+            type_vetement_id=prestation.id,
+            description=data.description,
+            quantite=data.quantite,
+            prix_unitaire=prix,
+        )
+    )
+    recalculer_montants(commande)
+    db.flush()
+    return commande
+
+
+def retirer_ligne(db: Session, commande_id: int, ligne_id: int) -> Commande:
+    """RG10 : retire une prestation. Une commande garde toujours au moins une ligne."""
+    commande = get_commande(db, commande_id)
+    _verifier_lignes_modifiables(commande)
+
+    ligne = next((l for l in commande.lignes if l.id == ligne_id), None)
+    if ligne is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ligne introuvable")
+    if len(commande.lignes) == 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Une commande doit garder au moins une prestation",
+        )
+
+    commande.lignes.remove(ligne)
+    db.flush()
+    recalculer_montants(commande)
+    db.flush()
+    return commande
+
+
+def lister_commandes(
+    db: Session,
+    statut: str | None,
+    client_id: int | None,
+    date_min,
+    date_max,
+    numero: str | None,
+    limit: int,
+    offset: int,
+):
+    """Liste paginée, la plus récente d'abord. Ajoute aussi le solde et le retard (RG11)."""
+    requete = select(Commande)
+    if statut is not None:
+        requete = requete.where(Commande.statut == statut)
+    if client_id is not None:
+        requete = requete.where(Commande.client_id == client_id)
+    if date_min is not None:
+        requete = requete.where(Commande.date_commande >= date_min)
+    if date_max is not None:
+        requete = requete.where(Commande.date_commande <= date_max)
+    if numero is not None:
+        requete = requete.where(Commande.numero == numero)
+
+    total = db.scalar(select(func.count()).select_from(requete.subquery()))
+    items = db.scalars(
+        requete.order_by(Commande.date_commande.desc(), Commande.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return list(items), total

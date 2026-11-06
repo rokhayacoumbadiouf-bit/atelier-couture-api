@@ -48,3 +48,13 @@ class CommandeRead(BaseModel):
     lignes: list[LigneRead]
     created_at: datetime
     updated_at: datetime
+
+class CommandeUpdate(BaseModel):
+    mesure_id: int | None = None
+    date_livraison_prevue: date | None = None
+    remise: int | None = Field(default=None, ge=0)
+    notes: str | None = None
+
+
+class LigneAjout(LigneCreate):
+    """Même forme qu'une ligne de création, utilisée pour POST /commandes/{id}/lignes."""
